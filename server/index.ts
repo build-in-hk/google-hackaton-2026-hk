@@ -396,7 +396,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('[server:error]', err.message);
 
   // If SSE stream already started, push error event
-  if (res.headersSent && typeof res.getHeader('Content-Type') === 'string' && (res.getHeader('Content-Type') as string).includes('event-stream')) {
+  if (res.headersSent && (res.getHeader('Content-Type') as string)?.includes('event-stream')) {
     sseData(res, {
       surfaceUpdate: {
         surfaceId: 'main',

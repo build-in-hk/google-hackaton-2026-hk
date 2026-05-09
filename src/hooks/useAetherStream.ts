@@ -1,22 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { A2UIPayload } from '../a2ui/types';
 
-export interface UseAetherStreamOptions {
-  sessionId: string;
-}
-
-export interface StreamState {
-  payload: A2UIPayload | null;
-  isConnected: boolean;
-}
-
+export interface UseAetherStreamOptions { sessionId: string; }
+export interface StreamState { payload: A2UIPayload | null; isConnected: boolean; }
 export type StreamPhase = 'idle' | 'streaming' | 'done';
 
 export function useA2UIStream(options: UseAetherStreamOptions) {
   const sessionId = typeof options === 'string' ? options : options.sessionId;
-  const [payload, setPayload] = useState<A2UIPayload>({
-    surfaceUpdate: { surfaceId: 'main', components: [] },
-  });
+  const [payload, setPayload] = useState<A2UIPayload>({ surfaceUpdate: { surfaceId: 'main', components: [] } });
   const [isConnected] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -25,7 +16,7 @@ export function useA2UIStream(options: UseAetherStreamOptions) {
     setIsStreaming(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/actions/${sessionId}`, {
+      const response = await fetch(`http://localhost:3001/api/actions/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -40,18 +31,12 @@ export function useA2UIStream(options: UseAetherStreamOptions) {
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
-
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              setPayload(parsed);
-              setIsStreaming(false);
-            } catch { /* ignore */ }
+            try { setPayload(JSON.parse(line.slice(6))); setIsStreaming(false); } catch { /* ignore */ }
           }
         }
       }
@@ -63,13 +48,9 @@ export function useA2UIStream(options: UseAetherStreamOptions) {
   useEffect(() => {
     const handleEvent = (event: MessageEvent) => {
       if (event.data?.startsWith('data: ')) {
-        try {
-          const parsed = JSON.parse(event.data.slice(6));
-          setPayload(parsed);
-        } catch { /* ignore */ }
+        try { setPayload(JSON.parse(event.data.slice(6))); } catch { /* ignore */ }
       }
     };
-
     window.addEventListener('message', handleEvent);
     return () => window.removeEventListener('message', handleEvent);
   }, []);

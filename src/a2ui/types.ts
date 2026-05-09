@@ -1,41 +1,18 @@
 // ============================================================================
 // A2UI Type Definitions for AetherPet
 // ============================================================================
-// Extends the core A2UI spec with:
-// - Flat adjacency list support (parentId for tree reconstruction)
-// - Typed custom AetherPet component props
-// - Trusted catalog mapping (string type -> component metadata)
-// - Full surface/data model message protocol
-// ============================================================================
 
-// --- Core A2UI Component Model ---
-
-/**
- * Base A2UI component with flat adjacency list support.
- * Uses parentId instead of nested children so the agent can
- * emit components in any order and the renderer reconstructs the tree.
- */
 export interface A2UIComponent {
-  /** Stable identifier preserved across surface updates for animation. */
   id: string;
-  /** Parent component ID (null/undefined = root-level). */
   parentId?: string | null;
-  /** The component type string that maps to the trusted catalog. */
   type: string;
-  /** Component-specific props (schema defined by catalog entry). */
   props: Record<string, unknown>;
 }
 
-/**
- * Legacy wire-format from Gemini agent (for backward compat).
- * Normalized to A2UIComponent at the store layer.
- */
 export interface A2UIWireComponent {
   id: string;
   component: Record<string, unknown>;
 }
-
-// --- Surface Protocol Messages ---
 
 export interface SurfaceUpdate {
   surfaceId: string;
@@ -44,12 +21,7 @@ export interface SurfaceUpdate {
 }
 
 export interface DataModelUpdate {
-  stats?: {
-    hunger: number;
-    happiness: number;
-    energy: number;
-    affection: number;
-  };
+  stats?: { hunger: number; happiness: number; energy: number; affection: number };
   data?: Record<string, unknown>;
 }
 
@@ -58,17 +30,11 @@ export interface BeginRendering {
   root?: string;
 }
 
-/**
- * Full SSE payload as sent by the server.
- * Any combination of fields may be present per event.
- */
 export interface A2UIPayload {
   surfaceUpdate?: SurfaceUpdate;
   dataModelUpdate?: DataModelUpdate;
   beginRendering?: BeginRendering;
 }
-
-// --- AetherPet Custom Component Catalog ---
 
 export interface CatalogEntry {
   label: string;
@@ -77,8 +43,6 @@ export interface CatalogEntry {
 }
 
 export type AetherCatalog = Record<string, CatalogEntry>;
-
-// --- AetherPet Component Prop Types (typed for React) ---
 
 export interface SceneProps {
   width?: number;
@@ -121,14 +85,10 @@ export interface InventorySlotProps {
   items: string[];
 }
 
-// --- Resolved Tree ---
-
 export interface TreeNode {
   component: A2UIComponent;
   children: TreeNode[];
 }
-
-// --- Stream Lifecycle ---
 
 export type StreamPhase = 'idle' | 'thinking' | 'transition' | 'rendering' | 'done';
 
