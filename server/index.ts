@@ -21,6 +21,9 @@ import {
 } from './session';
 import type { AetherAction, AetherPetState, ActionType } from './engine';
 import { generateThought, generateUnlockThought } from './thoughts';
+import { generateScene, getFallbackScene } from './agent';
+import { getGoldenScene } from './director';
+import { composeScene } from './templates';
 
 // ── Config ──────────────────────────────────────────────────
 
@@ -373,8 +376,52 @@ app.post('/api/actions/:sessionId', async (req, res) => {
   if (res.writableEnded) return;
 
   // ── Phase 3: Full Scene (~450–650ms) ──
-  // Complete scene with background, stats, actions
-  sseData(res, buildFullScene(newState, thought, newUnlocks));
+  // Three-tier scene generation:
+  //   1. Golden scenes for milestone moments (highest priority)
+  //   2. AI-generated scenes via Gemini (scalable, dynamic)
+  //   3. Deterministic fallback (reliability)
+  let sceneComponents: Array<{ id: string; component: Record<string, unknown> }>;
+
+  const golden = getGoldenScene(newState, actionType, newUnlocks);
+  if (golden) {
+    console.log('[scene] golden moment:', golden.label);
+    const goldenResult = golden.scene(newState);
+    sceneComponents = goldenResult;
+  } else {
+    try {
+      const aiResult = await generateScene(newState, thought, actionType);
+      sceneComponents = aiResult;
+      console.log('[scene] AI-generated');
+    } catch (err) {
+      console.log('[scene] AI failed, falling back to deterministic');
+      sceneComponents = getFallbackScene(newState, thought);
+    }
+  }
+
+  // Add unlock toast if new features unlocked
+  if (newUnlocks.length > 0) {
+    sceneComponents.push({
+      id: 'unlock-toast',
+      component: { 'unlock-toast': { unlocks: newUnlocks } },
+    });
+  }
+
+  sseData(res, {
+    surfaceUpdate: { surfaceId: 'main', components: sceneComponents },
+    dataModelUpdate: {
+      stats: {
+        hunger: newState.hunger,
+        happiness: newState.joy,
+        energy: newState.energy,
+        affection: newState.bond,
+      },
+      data: {
+        stage: newState.stage,
+        location: newState.location,
+        interactionCount: newState.interactionCount,
+      },
+    },
+  });
 
   await sleep(100);
   if (res.writableEnded) return;
