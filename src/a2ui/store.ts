@@ -1,16 +1,23 @@
 // ============================================================================
 // A2UI Surface & Data Model Store
 // ============================================================================
+// Manages:
+// - Named surfaces (each is an isolated component tree)
+// - Flat adjacency list -> tree resolution via parentId
+// - Data model (stats, arbitrary key-value)
+// - Immutable snapshots for React rendering
+// ============================================================================
 
 import type {
   A2UIComponent,
   A2UIWireComponent,
-  A2UIRenderedComponent,
   A2UIPayload,
   TreeNode,
   SurfaceUpdate,
   DataModelUpdate,
 } from './types';
+
+// --- Internal state ---
 
 interface SurfaceEntry {
   surfaceId: string;
@@ -25,12 +32,16 @@ interface StoreState {
   pendingSurfaceId: string | null;
 }
 
+// --- Public snapshot (serializable for React) ---
+
 export interface SurfaceSnapshot {
   surfaceId: string;
   components: A2UIComponent[];
   version: number;
   dataModel: Record<string, unknown>;
 }
+
+// --- Store ---
 
 export class SurfaceStore {
   private state: StoreState = {
@@ -75,13 +86,12 @@ export class SurfaceStore {
     }
 
     for (const wire of components) {
-      const normalized = normalizeWireComponent(wire, surfaceId);
+      const normalized = normalizeWireComponent(wire);
       surface.components.set(normalized.id, normalized);
     }
 
     surface.version += 1;
     this.state.pendingSurfaceId = surfaceId;
-
     return true;
   }
 
@@ -93,18 +103,14 @@ export class SurfaceStore {
       Object.assign(this.state.dataModel, update.data);
     }
 
+    // Sync stats into stat-bars component for backward compat
     if (update.stats) {
       const surface = this.state.surfaces.get(this.state.currentSurfaceId);
       if (surface) {
         const existing = surface.components.get('stat-bars');
-        const merged: A2UIRenderedComponent = existing
-          ? { ...existing, props: { ...(existing as any).props, ...update.stats } }
-          : {
-              id: 'stat-bars',
-              type: 'stat-bars',
-              component: {},
-              props: { ...update.stats },
-            };
+        const merged: A2UIComponent = existing
+          ? { ...existing, props: { ...existing.props, ...update.stats } }
+          : { id: 'stat-bars', type: 'stat-bars', props: { ...update.stats } };
         surface.components.set('stat-bars', merged);
       }
     }
@@ -141,6 +147,8 @@ export class SurfaceStore {
   }
 }
 
+// --- Adjacency list -> tree resolution ---
+
 export function resolveTree(components: A2UIComponent[]): TreeNode[] {
   const nodeMap = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
@@ -151,9 +159,8 @@ export function resolveTree(components: A2UIComponent[]): TreeNode[] {
 
   for (const comp of components) {
     const node = nodeMap.get(comp.id)!;
-    const parentId = (comp as any).parentId || (node.component as any).parentId;
-    if (parentId && nodeMap.has(parentId)) {
-      nodeMap.get(parentId)!.children.push(node);
+    if (comp.parentId && nodeMap.has(comp.parentId)) {
+      nodeMap.get(comp.parentId)!.children.push(node);
     } else {
       roots.push(node);
     }
@@ -162,20 +169,24 @@ export function resolveTree(components: A2UIComponent[]): TreeNode[] {
   return roots;
 }
 
-function normalizeWireComponent(wire: A2UIWireComponent, _surfaceId: string): A2UIRenderedComponent {
+// --- Legacy wire format normalization ---
+
+function normalizeWireComponent(wire: A2UIWireComponent): A2UIComponent {
   const [type, props] = Object.entries(wire.component)[0] || [];
 
   if (!type || !props) {
-    return { id: wire.id, type: wire.id, component: {}, props: {} };
+    return { id: wire.id, type: wire.id, props: {} };
   }
 
-  return { id: wire.id, type, component: {}, props: props as Record<string, unknown> };
+  return { id: wire.id, type, props: props as Record<string, unknown> };
 }
+
+// --- Component diffing for animation ---
 
 export function diffComponents(
   prev: A2UIComponent[],
   next: A2UIComponent[],
-): { added: Set<string>; updated: Set<string>; removed: Set<string>; } {
+): { added: Set<string>; updated: Set<string>; removed: Set<string> } {
   const prevIds = new Set(prev.map((c) => c.id));
   const nextIds = new Set(next.map((c) => c.id));
 
@@ -187,7 +198,6 @@ export function diffComponents(
     if (prevIds.has(id)) updated.add(id);
     else added.add(id);
   }
-
   for (const id of prevIds) {
     if (!nextIds.has(id)) removed.add(id);
   }
