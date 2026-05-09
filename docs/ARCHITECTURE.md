@@ -50,7 +50,7 @@ sequenceDiagram
 | `app/api/copilotkit/route.ts` | `CopilotRuntime`, `BuiltInAgent`, `a2ui: { injectA2UITool: true }`, research tool |
 | `lib/agent/prompts.ts` | System prompt — forces A2UI-first behavior |
 | `lib/research/mock-research.ts` | Replace with real APIs / web research |
-| `lib/llm-config.ts` | `LLM_MODEL` / `GEMINI_MODEL` normalization |
+| `lib/llm-config.ts` | `LLM_MODEL` / `GEMINI_MODEL` + `GOOGLE_API_KEY` for Gemini |
 | `components/home-page.tsx` | Layout; `useCopilotReadable` wires context |
 | `components/map-pin-picker.tsx` | Google Maps pin |
 | `components/moving-todo-panel.tsx` | Local todo list (not agent UI) |

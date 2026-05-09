@@ -1,10 +1,13 @@
 /**
- * Central place to read LLM configuration. Swap models without code changes.
+ * Central place to read LLM configuration.
+ * The agent uses the Google Gemini API (Google AI Studio) via CopilotKit’s `google/...` model id.
+ *
+ * Maps use NEXT_PUBLIC_GOOGLE_MAPS_API_KEY only.
  *
  * @see docs/API_KEYS.md
  */
 
-/** CopilotKit BuiltInAgent expects e.g. `google/gemini-2.5-flash` (provider/model). */
+/** BuiltInAgent expects e.g. `google/gemini-2.5-flash` (provider/model). */
 export function getModelSpecifier(): string {
   const fromEnv = process.env.LLM_MODEL?.trim();
   if (fromEnv) return normalizeModelSpecifier(fromEnv);
@@ -12,7 +15,6 @@ export function getModelSpecifier(): string {
   const geminiOnly = process.env.GEMINI_MODEL?.trim();
   if (geminiOnly) return normalizeModelSpecifier(geminiOnly);
 
-  // Default tuned for Google AI Studio; override via LLM_MODEL when Google ships new IDs.
   return "google/gemini-2.5-flash";
 }
 
@@ -22,7 +24,7 @@ function normalizeModelSpecifier(raw: string): string {
   return `google/${s.replace(/^google[-/]/i, "")}`;
 }
 
-/** Vercel AI SDK Google provider reads GOOGLE_API_KEY; we also accept GEMINI_API_KEY. */
+/** API key for Gemini; BuiltInAgent also falls back to env if omitted. */
 export function getGoogleApiKey(): string | undefined {
   return process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
 }

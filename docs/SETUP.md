@@ -23,7 +23,7 @@ See [API_KEYS.md](./API_KEYS.md) for every variable.
 
 Minimum to run the agent:
 
-- `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+- `GOOGLE_API_KEY` or `GEMINI_API_KEY` (see [API_KEYS.md](./API_KEYS.md))
 
 Minimum for the interactive map:
 
